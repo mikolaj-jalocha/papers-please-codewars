@@ -2,11 +2,12 @@
 
 
 package com.main;
-import java.util.*;
-import java.awt.*;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,26 +16,25 @@ public class Inspector {
 
 
     private Map<String,ArrayList<String>> values = new HashMap<>();
-    private  Map<String, String> common_regex_patterns =  new HashMap<>();
-    private  Map<String, String> special_regex_patterns =  new HashMap<>();
-    private ArrayList<String> signatures = new ArrayList<>();
+    private final Map<String, String> common_regex_patterns =  new HashMap<>();
+    private final Map<String, String> special_regex_patterns =  new HashMap<>();
+    private final ArrayList<String> signatures = new ArrayList<>();
 
-    //By country requiremetns
-    private ArrayList<String> foreigners_requirements = new ArrayList<>();
-    private ArrayList<String> citizens_requirements = new ArrayList<>();
-    private ArrayList<String> entrants_requirements = new ArrayList<>();
-    private ArrayList<String> allowed_nations  = new ArrayList<>();
+    //By country requirements
+    private final ArrayList<String> foreigners_requirements = new ArrayList<>();
+    private final ArrayList<String> citizens_requirements = new ArrayList<>();
+    private final ArrayList<String> entrants_requirements = new ArrayList<>();
+    private final ArrayList<String> allowed_nations  = new ArrayList<>();
 
     //other requirements
-    private Map<String,ArrayList<String>> required_vaccinations  = new HashMap<>();
-    private ArrayList<String> workers_requirements = new ArrayList<>();
+    private final Map<String,ArrayList<String>> required_vaccinations  = new HashMap<>();
+    private final ArrayList<String> workers_requirements = new ArrayList<>();
     private String wanted_by_the_state="";
 
     //other utility objects
-    final private LocalDate expirienceDate = LocalDate.of(1982,11,22);
+    final private LocalDate experienceDate = LocalDate.of(1982,11,22);
     private Matcher matcher;
     private Pattern pattern;
-    private String tempForBulletin;
 
     public Inspector()
     {
@@ -58,7 +58,7 @@ public class Inspector {
         signatures.addAll(special_regex_patterns.keySet());
         signatures.add("DOCUMENT");
         signatures.add("ACCESS");
-        signatures.add("VACCINESS");
+        signatures.add("VACCINES");
 
     }
 
@@ -160,7 +160,7 @@ public class Inspector {
 
     private String check(ArrayList<String> v, String type)
     {
-        if (type == "DOCUMENT" || type == "EXP" || type == "ACCESS" || type == "VACCINESS")
+        if (type.equals("DOCUMENT") || type.equals("EXP") || type.equals("ACCESS") || type.equals("VACCINES"))
             return "";
         if(v.stream().distinct().count() > 1)
             return "Detainment: " + type + " mismatch.";
@@ -170,17 +170,16 @@ public class Inspector {
 
     private String vaccineCheck()
     {
-        ArrayList<String> vacineSet = new ArrayList<>();
-        vacineSet.addAll(required_vaccinations.keySet());
+        ArrayList<String> vaccineSet = new ArrayList<>(required_vaccinations.keySet());
 
-        for (int i =0; i < vacineSet.size(); i++) {
-            ArrayList<String> nations = required_vaccinations.get(vacineSet.get(i));
-            for(String nation : nations) {
+        for (String s : vaccineSet) {
+            ArrayList<String> nations = required_vaccinations.get(s);
+            for (String nation : nations) {
 
                 if ((nation.equals("FOREIGNERS") && !values.get("nationality").get(0).equals("Arstotzka")) || nation.equals("ENTRANTS") || nation.equals(values.get("nationality").get(0))) {
                     if (!values.get("DOCUMENT").contains("certificate of vaccination"))
                         return "Entry denied: missing required certificate of vaccination.";
-                    if (values.get("VACCINESS").get(0).contains(vacineSet.get(i)))
+                    if (values.get("VACCINES").get(0).contains(s))
                         continue;
                     return "Entry denied: missing required vaccination.";
                 }
@@ -195,7 +194,7 @@ public class Inspector {
             return "";
 
         LocalDate localDate = LocalDate.parse(date.substring(0,10), DateTimeFormatter.ofPattern("yyyy.MM.dd"));
-        if(localDate.isAfter(expirienceDate) || localDate.isEqual(expirienceDate))
+        if(localDate.isAfter(experienceDate) || localDate.isEqual(experienceDate))
             return "";
         return  "Entry denied: " + date.substring(11) + " expired.";
 
@@ -223,37 +222,33 @@ public class Inspector {
         for(int i = 0 ; i < values.get("EXP").size(); i++)
         {
             String test =  expChecking(values.get("EXP").get(i));
-            if(test.equals(""))
-                continue;
-            else return test;
+            if(!test.equals("")) {
+                return test;
+            }
+
         }
-        for(int i = 0; i < entrants_requirements.size(); i++)
-        {
-            if (!values.get("DOCUMENT").contains(entrants_requirements.get(i)))
-            {
-                return "Entry denied: missing required " + entrants_requirements.get(i) + ".";
+        for (String entrants_requirement : entrants_requirements) {
+            if (!values.get("DOCUMENT").contains(entrants_requirement)) {
+                return "Entry denied: missing required " + entrants_requirement + ".";
             }
         }
 
         if (!values.get("nationality").get(0).equals("Arstotzka"))
         {
-            for(int i = 0; i < foreigners_requirements.size(); i++)
-                if (!values.get("DOCUMENT").contains(foreigners_requirements.get(i))){
-                    if(foreigners_requirements.get(i).equals("access permit"))
-                    {
-                        if(values.get("DOCUMENT").contains("diplomatic authorization"))
-                        {
-                            if(!values.get("ACCESS").get(0).contains("Arstotzka"))
+            for (String foreigners_requirement : foreigners_requirements)
+                if (!values.get("DOCUMENT").contains(foreigners_requirement)) {
+                    if (foreigners_requirement.equals("access permit")) {
+                        if (values.get("DOCUMENT").contains("diplomatic authorization")) {
+                            if (!values.get("ACCESS").get(0).contains("Arstotzka"))
                                 return "Entry denied: invalid diplomatic authorization.";
                             else
                                 continue;
-                        }
-                        else if (values.get("DOCUMENT").contains("grant of asylum"))
+                        } else if (values.get("DOCUMENT").contains("grant of asylum"))
                             continue;
                         else
-                            return "Entry denied: missing required " + foreigners_requirements.get(i) + ".";
+                            return "Entry denied: missing required " + foreigners_requirement + ".";
                     }
-                    return "Entry denied: missing required " + foreigners_requirements.get(i) + ".";
+                    return "Entry denied: missing required " + foreigners_requirement + ".";
                 }
         }
         if(!allowed_nations.contains(values.get("nationality").get(0)))
@@ -265,9 +260,9 @@ public class Inspector {
                 return "Entry denied: missing required work pass.";
         }
 
-        String vaccin =  vaccineCheck();
-        if(!vaccin.isEmpty())
-            return vaccin;
+        String vaccine =  vaccineCheck();
+        if(!vaccine.isEmpty())
+            return vaccine;
 
 
 
@@ -298,7 +293,7 @@ public class Inspector {
         }
         if(docName.equals("certificate_of_vaccination"))
         {
-            values.get("VACCINESS").add(document);
+            values.get("VACCINES").add(document);
         }
         for (String patterns : common_regex_patterns.keySet())
         {
@@ -320,7 +315,7 @@ public class Inspector {
     {
         pattern = Pattern.compile(special_regex_patterns.get("name"));
         matcher = pattern.matcher(name);
-        if(matcher.find());
+        if(matcher.find())
         values.get("name").add(matcher.group(2)+" "+matcher.group(1));
     }
 
